@@ -1,4 +1,10 @@
 {
+	"name": "jlcd/kissmetrics-to-database",
+    "autoload": {
+        "psr-0" : {
+            "jlcd\\KissmetricsToDatabase" : "src"
+        }
+    },
     "require": {
         "phpmailer/phpmailer": "5.2.8"
     }
