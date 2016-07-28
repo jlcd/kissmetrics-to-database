@@ -1,4 +1,5 @@
 <?php
+namespace KissmetricsToDatabase;
 
 define('DEV_ENV', (strpos($_SERVER['HTTP_HOST'], 'local') !== FALSE));
 define('ENVIRONMENT', (DEV_ENV ? 'DEVELOPMENT' : 'PRODUCTION'));
