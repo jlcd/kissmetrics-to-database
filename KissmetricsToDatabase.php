@@ -3,9 +3,6 @@
 define('DEV_ENV', (strpos($_SERVER['HTTP_HOST'], 'local') !== FALSE));
 define('ENVIRONMENT', (DEV_ENV ? 'DEVELOPMENT' : 'PRODUCTION'));
 
-$dotenv = new Dotenv\Dotenv(__DIR__);
-$dotenv->load();
-
 require 'vendor/autoload.php';
 
 class KissmetricsToDatabase
@@ -34,7 +31,7 @@ class KissmetricsToDatabase
     {
         $this->exec_started = time();
 
-        if ($_ENV['CFG_USE_JAVASCRIPT_OUTPUT'] && !$this->isPhpCli()) {
+        if (getenv['CFG_USE_JAVASCRIPT_OUTPUT'] && !$this->isPhpCli()) {
             $this->createJsBaseScript();
         }
 
@@ -47,58 +44,58 @@ class KissmetricsToDatabase
             $env = "<b style=\"color:red\">PRODUCTION</b>";
         $this->output("<h2>$env Environment</h2>", true);
 
-        if ($_ENV['CFG_USE_LOCK_FILE'] && file_exists($_ENV['CFG_BASE_PATH'] . $_ENV['CFG_LOCK_FILE'])) {
+        if (getenv['CFG_USE_LOCK_FILE'] && file_exists(getenv['CFG_BASE_PATH'] . getenv['CFG_LOCK_FILE'])) {
             $this->_die("Lock file found");
         }
-        file_put_contents($_ENV['CFG_BASE_PATH'] . $_ENV['CFG_LOCK_FILE'], time());
+        file_put_contents(getenv['CFG_BASE_PATH'] . getenv['CFG_LOCK_FILE'], time());
 
         $this->config();
 
-        $current_count_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . $_ENV['DB_TABLE'] );
+        $current_count_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv['DB_TABLE'] );
         $current_count_res = $this->databaseGetResult($current_count_qry);
         $this->start_datapoints_count = $current_count_res[0]['ct'];
 
-        $this->output("Start " . $_ENV['DB_TABLE'] . " Count: " . $this->start_datapoints_count, true);
+        $this->output("Start " . getenv['DB_TABLE'] . " Count: " . $this->start_datapoints_count, true);
 
-        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . $_ENV['DB_IDENTITIES_TABLE'] );
+        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv['DB_IDENTITIES_TABLE'] );
         $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
         $this->start_identities_count = $current_idcount_res[0]['ct'];
 
-        $this->output("Start " . $_ENV['DB_IDENTITIES_TABLE'] . " Count: " . $this->start_identities_count, true);
+        $this->output("Start " . getenv['DB_IDENTITIES_TABLE'] . " Count: " . $this->start_identities_count, true);
     }
     public function __destruct()
     {
         $cleanup_title = ($this->dead ? "[DEAD] " : "")."Class Cleanup";
         $this->output($cleanup_title, true);
 
-        $current_count_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . $_ENV['DB_TABLE'] );
+        $current_count_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv['DB_TABLE'] );
         $current_count_res = $this->databaseGetResult($current_count_qry);
         $this->end_datapoints_count = $current_count_res[0]['ct'];
 
         $count_difference = $this->end_datapoints_count - $this->start_datapoints_count;
 
-        $this->output("End " . $_ENV['DB_TABLE'] . " Count: " . $this->end_datapoints_count . " (+" . $count_difference . ")", true);
+        $this->output("End " . getenv['DB_TABLE'] . " Count: " . $this->end_datapoints_count . " (+" . $count_difference . ")", true);
 
-        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . $_ENV['DB_IDENTITIES_TABLE'] );
+        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv['DB_IDENTITIES_TABLE'] );
         $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
         $this->end_identities_count = $current_idcount_res[0]['ct'];
 
         $idcount_difference = $this->end_identities_count - $this->start_identities_count;
 
-        $this->output("End " . $_ENV['DB_IDENTITIES_TABLE'] . " Count: " . $this->end_identities_count . " (+" . $idcount_difference . ")", true);
+        $this->output("End " . getenv['DB_IDENTITIES_TABLE'] . " Count: " . $this->end_identities_count . " (+" . $idcount_difference . ")", true);
 
         $this->output("Ended: " . date('H:i:s'), true);
         $this->output("Exec time: " . $this->getDateDiff(time(), $this->exec_started), true);
 
         if (!$this->dead) {
-            if ($_ENV['CFG_USE_LOCK_FILE']) {
-                unlink($_ENV['CFG_BASE_PATH'] . $_ENV['CFG_LOCK_FILE']);
+            if (getenv['CFG_USE_LOCK_FILE']) {
+                unlink(getenv['CFG_BASE_PATH'] . getenv['CFG_LOCK_FILE']);
             }
         }
 
         echo "</body>";
 
-        if ($_ENV['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
+        if (getenv['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
             $output = ob_get_clean();
             $this->sendMail($output);
         }
@@ -107,23 +104,23 @@ class KissmetricsToDatabase
     private function config()
     {
 
-        if ($_ENV['DB_MODIFY_CONNECT_TIMEOUT']) {
-            ini_set('mysql.connect_timeout', $_ENV['DB_MODIFY_CONNECT_TIMEOUT_TO']);
-            ini_set('default_socket_timeout', $_ENV['DB_MODIFY_CONNECT_TIMEOUT_TO']);
+        if (getenv['DB_MODIFY_CONNECT_TIMEOUT']) {
+            ini_set('mysql.connect_timeout', getenv['DB_MODIFY_CONNECT_TIMEOUT_TO']);
+            ini_set('default_socket_timeout', getenv['DB_MODIFY_CONNECT_TIMEOUT_TO']);
         }
 
-        set_time_limit($_ENV['CFG_EXECUTION_TIME_LIMIT']);
+        set_time_limit(getenv['CFG_EXECUTION_TIME_LIMIT']);
 
         $this->starting_read_local_s3_file = $this->getLastReadLocalS3File();
 
-        if ($_ENV['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
+        if (getenv['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
             ob_start();
-        } else if ($_ENV['CFG_USE_AUTO_FLUSH']) {
+        } else if (getenv['CFG_USE_AUTO_FLUSH']) {
             ob_implicit_flush(true);
         }
 
-        if ($_ENV['CFG_EXTEND_MEMORY']) {
-            ini_set('memory_limit', $_ENV['CFG_EXTEND_MEMORY_TO']);
+        if (getenv['CFG_EXTEND_MEMORY']) {
+            ini_set('memory_limit', getenv['CFG_EXTEND_MEMORY_TO']);
         }
 
         $this->output("Class Configured", true);
@@ -134,7 +131,7 @@ class KissmetricsToDatabase
         $this->output("Starting S3 Sync...", true);
 
         $cmd = 'export AWS_DEFAULT_REGION="us-east-1";';
-        $cmd .= $_ENV['AWS_BIN_PATH'] . ' s3 sync ' . $_ENV['AWS_S3_SOURCE_URL'] . ' ' . $_ENV['LOCAL_S3_TARGET_DIR'] . ' 2>&1';
+        $cmd .= getenv['AWS_BIN_PATH'] . ' s3 sync ' . getenv['AWS_S3_SOURCE_URL'] . ' ' . getenv['LOCAL_S3_TARGET_DIR'] . ' 2>&1';
 
         $this->output(nl2br(shell_exec($cmd)), true);
 
@@ -148,7 +145,7 @@ class KissmetricsToDatabase
             $this->output("Starting from file " . ($this->getLastReadLocalS3File() +1). "...", true);
         }
 
-        $local_s3_dir = $_ENV['LOCAL_S3_TARGET_DIR'];
+        $local_s3_dir = getenv['LOCAL_S3_TARGET_DIR'];
 
         # Scans the local S3 directory (potentially after sync) and creates an array with all the valid files
         if (is_dir($local_s3_dir) && ($dh = opendir($local_s3_dir))) {
@@ -170,7 +167,7 @@ class KissmetricsToDatabase
             $total_rows_per_file = 0;
             foreach ($this->local_s3_files as $k => $file) {
                 $line_count_helper = 0;
-                if ($handle = fopen($_ENV['LOCAL_S3_TARGET_DIR'] . $file, 'r')) {
+                if ($handle = fopen(getenv['LOCAL_S3_TARGET_DIR'] . $file, 'r')) {
                     $this->output("$file ({$line_count_helper})");
                     while (!feof($handle)) {
 
@@ -220,7 +217,7 @@ class KissmetricsToDatabase
     {
         $this->output("Creating New Database Fields...", true);
 
-        $current_columns_qry = $this->databaseQuery("SELECT column_name FROM information_schema.columns WHERE table_name = '" . $_ENV['DB_TABLE'] . "'");
+        $current_columns_qry = $this->databaseQuery("SELECT column_name FROM information_schema.columns WHERE table_name = '" . getenv['DB_TABLE'] . "'");
         $current_columns_res = $this->databaseGetResult($current_columns_qry);
         $current_columns     = array();
         foreach ($current_columns_res as $r) {
@@ -233,7 +230,7 @@ class KissmetricsToDatabase
                 continue;
             }
             $this->output("New field {$key}...", true);
-            if (!$this->databaseQuery("ALTER TABLE " . $_ENV['DB_TABLE'] . " ADD " . $key . " " . $_ENV['DB_DEFAULT_FIELD_TYPE'] . ";")) {
+            if (!$this->databaseQuery("ALTER TABLE " . getenv['DB_TABLE'] . " ADD " . $key . " " . getenv['DB_DEFAULT_FIELD_TYPE'] . ";")) {
                 $this->output("Field {$key}: " . $this->getDatabaseError(), true);
             }
             $this->databaseEmptyResult();
@@ -251,7 +248,7 @@ class KissmetricsToDatabase
         $insert_new_events_into_mysql_started = time();
         $eta                                  = '-';
         foreach ($this->local_s3_files as $file) {
-            if ($handle = fopen($_ENV['LOCAL_S3_TARGET_DIR'] . $file, 'r')) {
+            if ($handle = fopen(getenv['LOCAL_S3_TARGET_DIR'] . $file, 'r')) {
                 while (!feof($handle)) {
                     $line = trim(fgets($handle));
 
@@ -314,14 +311,14 @@ class KissmetricsToDatabase
             $this->setLastReadLocalS3File($file);
         }
 
-        if ($_ENV['DB_OPTIMIZE_TABLES_AFTER_INSERTS']) {
+        if (getenv['DB_OPTIMIZE_TABLES_AFTER_INSERTS']) {
             $this->databaseOptimizeTables();
         }
 
         $this->output("", true);
         $this->done();
 
-        if ($_ENV['DB_DELETE_DUPLICATES_AFTER_INSERTS']) {
+        if (getenv['DB_DELETE_DUPLICATES_AFTER_INSERTS']) {
             $this->deleteDuplicates();
         }
 
@@ -379,7 +376,7 @@ class KissmetricsToDatabase
     private function getAliasesIdentity($identity)
     {
         $identity = pg_escape_string($identity);
-        $query    = "SELECT identity1 FROM " . $_ENV['DB_IDENTITIES_TABLE'] . " WHERE identity2 = '{$identity}'";
+        $query    = "SELECT identity1 FROM " . getenv['DB_IDENTITIES_TABLE'] . " WHERE identity2 = '{$identity}'";
 
         $id_qry     = $this->databaseQuery($query);
         $id_res     = $this->databaseGetResult($id_qry);
@@ -393,8 +390,8 @@ class KissmetricsToDatabase
     private function databaseOptimizeTables()
     {
         $this->output("Optimizing Tables", true);
-        $this->databaseQuery("VACUUM FULL " . $_ENV['DB_TABLE']);
-        $this->databaseQuery("VACUUM FULL " . $_ENV['DB_IDENTITIES_TABLE']);
+        $this->databaseQuery("VACUUM FULL " . getenv['DB_TABLE']);
+        $this->databaseQuery("VACUUM FULL " . getenv['DB_IDENTITIES_TABLE']);
     }
 
     private function deleteDuplicates()
@@ -408,7 +405,7 @@ class KissmetricsToDatabase
             $base_fields[] = 't1.`' . $key . '`=t2.`' . $key . '`';
         }
 
-        $query = "delete t1 from " . $_ENV['DB_TABLE'] . " t1, " . $_ENV['DB_TABLE'] . " t2 WHERE " . implode(' AND ', $base_fields);
+        $query = "delete t1 from " . getenv['DB_TABLE'] . " t1, " . getenv['DB_TABLE'] . " t2 WHERE " . implode(' AND ', $base_fields);
 
         $this->databaseQuery($query);
 
@@ -423,7 +420,7 @@ class KissmetricsToDatabase
             foreach ($this->sanitized_keys as $key => $field_size) {
                 $base_fields[] = $key;
             }
-            $this->base_insert_qry = "INSERT INTO " . $_ENV['DB_TABLE'] . " (" . implode(',', $base_fields) . ") VALUES ";
+            $this->base_insert_qry = "INSERT INTO " . getenv['DB_TABLE'] . " (" . implode(',', $base_fields) . ") VALUES ";
         }
 
         return $this->base_insert_qry;
@@ -434,7 +431,7 @@ class KissmetricsToDatabase
     {
 
         if (empty($this->base_identity_insert_qry)) {
-            $this->base_identity_insert_qry = "INSERT INTO " . $_ENV['DB_IDENTITIES_TABLE'] . " (identity1, identity2) VALUES ";
+            $this->base_identity_insert_qry = "INSERT INTO " . getenv['DB_IDENTITIES_TABLE'] . " (identity1, identity2) VALUES ";
         }
 
         return $this->base_identity_insert_qry;
@@ -444,10 +441,10 @@ class KissmetricsToDatabase
     private function getLastReadLocalS3File()
     {
         if ($this->last_read_local_s3_file === null) {
-            if (!is_file($_ENV['LOCAL_S3_LAST_READ_FILENAME'])) {
+            if (!is_file(getenv['LOCAL_S3_LAST_READ_FILENAME'])) {
                 $this->setLastReadLocalS3File("");
             }
-            $this->last_read_local_s3_file = file_get_contents($_ENV['LOCAL_S3_LAST_READ_FILENAME']);
+            $this->last_read_local_s3_file = file_get_contents(getenv['LOCAL_S3_LAST_READ_FILENAME']);
         }
 
         # Returns the number of the filename read (eg. for "1234.json", returns "1234")
@@ -456,7 +453,7 @@ class KissmetricsToDatabase
 
     private function setLastReadLocalS3File($file)
     {
-        file_put_contents($_ENV['LOCAL_S3_LAST_READ_FILENAME'], $file);
+        file_put_contents(getenv['LOCAL_S3_LAST_READ_FILENAME'], $file);
     }
 
     private function rollbackLastReadLocalS3File()
@@ -468,7 +465,7 @@ class KissmetricsToDatabase
     {
         $this->output("Connecting to Database...", true);
         try {
-            $this->db_conn = pg_connect("host=".$_ENV['DB_URL']." port=".$_ENV['DB_PORT']." dbname=".$_ENV['DB_DBNAME']." user=".$_ENV['DB_USER']." password=".$_ENV['DB_PASSWORD']);
+            $this->db_conn = pg_connect("host=".getenv['DB_URL']." port=".getenv['DB_PORT']." dbname=".getenv['DB_DBNAME']." user=".getenv['DB_USER']." password=".getenv['DB_PASSWORD']);
         } catch (Exception $e) {
             $this->rollback_last_read_local_s3_file();
             $this->_die($e->getMessage());
@@ -506,7 +503,7 @@ class KissmetricsToDatabase
     {
         $this->db_stash_insert_values[] = $query;
 
-        if (count($this->db_stash_insert_values) >= $_ENV['DB_QUERIES_PER_CALL']) {
+        if (count($this->db_stash_insert_values) >= getenv['DB_QUERIES_PER_CALL']) {
             $this->databaseCommitStashValues();
         }
     }
@@ -515,7 +512,7 @@ class KissmetricsToDatabase
     {
         $this->db_identity_stash_insert_values[] = $query;
 
-        if (count($this->db_identity_stash_insert_values) >= $_ENV['DB_QUERIES_PER_IDENTITY_CALL']) {
+        if (count($this->db_identity_stash_insert_values) >= getenv['DB_QUERIES_PER_IDENTITY_CALL']) {
             $this->databaseCommitIdentityStashValues();
         }
     }
@@ -524,7 +521,7 @@ class KissmetricsToDatabase
     {
         if (!empty($this->db_stash_insert_values)) {
             while (count($this->db_stash_insert_values)) {
-                $splice = array_splice($this->db_stash_insert_values, 0, $_ENV['DB_QUERIES_PER_CALL']);
+                $splice = array_splice($this->db_stash_insert_values, 0, getenv['DB_QUERIES_PER_CALL']);
                 $query = $this->getBaseInsertDatabaseQuery() . implode(",", $splice);
                 $this->databaseQuery($query);
                 $this->queriesData += count($splice);
@@ -537,7 +534,7 @@ class KissmetricsToDatabase
     {
         if (!empty($this->db_identity_stash_insert_values)) {
             while (count($this->db_identity_stash_insert_values)) {
-                $splice = array_splice($this->db_identity_stash_insert_values, 0, $_ENV['DB_QUERIES_PER_IDENTITY_CALL']);
+                $splice = array_splice($this->db_identity_stash_insert_values, 0, getenv['DB_QUERIES_PER_IDENTITY_CALL']);
                 $query = $this->getBaseIdentityDatabaseQuery() . implode(",", $splice);
                 $this->databaseQuery($query);
                 $this->queriesDataIdentities += count($splice);
@@ -587,7 +584,7 @@ class KissmetricsToDatabase
             $this->output_group++;
         }
 
-        if ($_ENV['CFG_USE_JAVASCRIPT_OUTPUT'] && !$this->isPhpCli()) {
+        if (getenv['CFG_USE_JAVASCRIPT_OUTPUT'] && !$this->isPhpCli()) {
             $this->outputJs($msg);
         } else {
             $this->outputNatural($msg);
@@ -597,7 +594,7 @@ class KissmetricsToDatabase
             $this->output_group++;
         }
 
-        if ($_ENV['CFG_USE_AUTO_FLUSH'] && !($_ENV['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli())) {
+        if (getenv['CFG_USE_AUTO_FLUSH'] && !(getenv['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli())) {
             flush();
             ob_flush();
         }
@@ -635,7 +632,7 @@ class KissmetricsToDatabase
         $this->dead = true;
         $this->output($msg, true);
 
-        if ($_ENV['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
+        if (getenv['CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI'] && $this->isPhpCli()) {
             $output = ob_get_clean();
             $this->sendMail($output);
         }
@@ -648,19 +645,19 @@ class KissmetricsToDatabase
         $mail = new PHPMailer;
 
         $mail->isSMTP();
-        $mail->Host       = $_ENV['CFG_EMAIL_HOST'];
+        $mail->Host       = getenv['CFG_EMAIL_HOST'];
         $mail->SMTPAuth   = true;
-        $mail->Username   = $_ENV['CFG_EMAIL_USERNAME'];
-        $mail->Password   = $_ENV['CFG_EMAIL_PASSWORD'];
+        $mail->Username   = getenv['CFG_EMAIL_USERNAME'];
+        $mail->Password   = getenv['CFG_EMAIL_PASSWORD'];
         $mail->SMTPSecure = 'tls';
-        $mail->Port       = $_ENV['CFG_EMAIL_PORT'];
+        $mail->Port       = getenv['CFG_EMAIL_PORT'];
 
-        $mail->setFrom($_ENV['CFG_EMAIL_FROM']);
-        $mail->addAddress($_ENV['CFG_EMAIL_TO']);
+        $mail->setFrom(getenv['CFG_EMAIL_FROM']);
+        $mail->addAddress(getenv['CFG_EMAIL_TO']);
 
         $mail->isHTML(true);
 
-        $mail->Subject = $_ENV['CFG_EMAIL_SUBJECT'];
+        $mail->Subject = getenv['CFG_EMAIL_SUBJECT'];
         $mail->Body    = $content;
 
         if (!$mail->send()) {
