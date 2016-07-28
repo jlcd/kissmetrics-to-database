@@ -8,7 +8,7 @@ $dotenv->load();
 
 require 'vendor/autoload.php';
 
-class s3ToDatabase
+class KissmetricsToDatabase
 {
     private $local_s3_files                         = array();
     private $starting_read_local_s3_file            = null;
