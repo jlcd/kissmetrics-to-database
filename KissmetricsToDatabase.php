@@ -45,10 +45,10 @@ class KissmetricsToDatabase
             $env = "<b style=\"color:red\">PRODUCTION</b>";
         $this->output("<h2>$env Environment</h2>", true);
 
-        if (getenv('CFG_USE_LOCK_FILE') && file_exists(getenv('CFG_BASE_PATH') . getenv('CFG_LOCK_FILE'))) {
+        if (getenv('CFG_USE_LOCK_FILE') && file_exists(getenv('CFG_LOCK_FILE'))) {
             $this->_die("Lock file found");
         }
-        file_put_contents(getenv('CFG_BASE_PATH') . getenv('CFG_LOCK_FILE'), time());
+        file_put_contents(getenv('CFG_LOCK_FILE'), time());
 
         $this->config();
 
@@ -90,7 +90,7 @@ class KissmetricsToDatabase
 
         if (!$this->dead) {
             if (getenv('CFG_USE_LOCK_FILE')) {
-                unlink(getenv('CFG_BASE_PATH') . getenv('CFG_LOCK_FILE'));
+                unlink(getenv('CFG_LOCK_FILE'));
             }
         }
 
