@@ -1,11 +1,23 @@
 {
 	"name": "jlcd/kissmetrics-to-database",
+    "type": "library",
+    "description": "Kissmetrics - S3 to Redshift",
+    "keywords": ["kissmetrics","export", "amazon", "redshift", "s3"],
+    "homepage": "https://github.com/jlcd/kissmetrics-to-database",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Joao Drummond",
+            "email": "jldrummond@gmail.com"
+        }
+    ],
     "autoload": {
-        "psr-0" : {
-            "jlcd\\KissmetricsToDatabase" : "src"
+        "psr-0": {
+            "Monolog": "src"
         }
     },
     "require": {
+        "php": ">=5.3.0",
         "phpmailer/phpmailer": "5.2.8"
     }
 }
