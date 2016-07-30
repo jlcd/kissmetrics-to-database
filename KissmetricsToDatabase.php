@@ -1,9 +1,6 @@
 <?php
 namespace KissmetricsToDatabase;
 
-define('DEV_ENV', (strpos($_SERVER['HTTP_HOST'], 'local') !== FALSE));
-define('ENVIRONMENT', (DEV_ENV ? 'DEVELOPMENT' : 'PRODUCTION'));
-
 require 'vendor/autoload.php';
 
 class KissmetricsToDatabase
@@ -38,12 +35,6 @@ class KissmetricsToDatabase
 
         echo "<body>";
         $this->output("Started: " . date('H:i:s'), true);
-
-        if (DEV_ENV)
-            $env = "DEVELOPMENT";
-        else
-            $env = "<b style=\"color:red\">PRODUCTION</b>";
-        $this->output("<h2>$env Environment</h2>", true);
 
         if (getenv('CFG_USE_LOCK_FILE') && file_exists(getenv('CFG_LOCK_FILE'))) {
             $this->_die("Lock file found");
@@ -108,6 +99,11 @@ class KissmetricsToDatabase
         if (getenv('DB_MODIFY_CONNECT_TIMEOUT')) {
             ini_set('mysql.connect_timeout', getenv('DB_MODIFY_CONNECT_TIMEOUT_TO'));
             ini_set('default_socket_timeout', getenv('DB_MODIFY_CONNECT_TIMEOUT_TO'));
+        }
+
+        if (getenv('CFG_SHOW_ERRORS')) {
+            error_reporting(E_ALL);
+            ini_set('display_errors', 1);
         }
 
         set_time_limit(getenv('CFG_EXECUTION_TIME_LIMIT'));
