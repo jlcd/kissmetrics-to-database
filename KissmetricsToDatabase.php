@@ -1,7 +1,6 @@
 <?php
-namespace KissmetricsToDatabase;
 
-require 'vendor/autoload.php';
+namespace KissmetricsToDatabase;
 
 class KissmetricsToDatabase
 {
@@ -639,7 +638,7 @@ class KissmetricsToDatabase
 
     public function sendMail($content)
     {
-        $mail = new PHPMailer;
+        $mail = new \PHPMailer;
 
         $mail->isSMTP();
         $mail->Host       = getenv('CFG_EMAIL_HOST');
