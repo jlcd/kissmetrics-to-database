@@ -48,11 +48,13 @@ class KissmetricsToDatabase
 
         $this->output("Start " . getenv('DB_TABLE') . " Count: " . $this->start_datapoints_count, true);
 
-        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv('DB_IDENTITIES_TABLE') );
-        $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
-        $this->start_identities_count = $current_idcount_res[0]['ct'];
+        if (getenv('DB_IDENTITIES_TABLE')) {
+            $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv('DB_IDENTITIES_TABLE') );
+            $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
+            $this->start_identities_count = $current_idcount_res[0]['ct'];
 
-        $this->output("Start " . getenv('DB_IDENTITIES_TABLE') . " Count: " . $this->start_identities_count, true);
+            $this->output("Start " . getenv('DB_IDENTITIES_TABLE') . " Count: " . $this->start_identities_count, true);
+        }
     }
     public function __destruct()
     {
@@ -67,13 +69,16 @@ class KissmetricsToDatabase
 
         $this->output("End " . getenv('DB_TABLE') . " Count: " . $this->end_datapoints_count . " (+" . $count_difference . ")", true);
 
-        $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv('DB_IDENTITIES_TABLE') );
-        $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
-        $this->end_identities_count = $current_idcount_res[0]['ct'];
 
-        $idcount_difference = $this->end_identities_count - $this->start_identities_count;
+        if (!getenv('DB_IDENTITIES_TABLE')) {
+            $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv('DB_IDENTITIES_TABLE') );
+            $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
+            $this->end_identities_count = $current_idcount_res[0]['ct'];
 
-        $this->output("End " . getenv('DB_IDENTITIES_TABLE') . " Count: " . $this->end_identities_count . " (+" . $idcount_difference . ")", true);
+            $idcount_difference = $this->end_identities_count - $this->start_identities_count;
+
+            $this->output("End " . getenv('DB_IDENTITIES_TABLE') . " Count: " . $this->end_identities_count . " (+" . $idcount_difference . ")", true);
+        }
 
         $this->output("Ended: " . date('H:i:s'), true);
         $this->output("Exec time: " . $this->getDateDiff(time(), $this->exec_started), true);
@@ -322,6 +327,9 @@ class KissmetricsToDatabase
 
     private function processIdentities($json)
     {
+        if (!getenv('DB_IDENTITIES_TABLE'))
+            return;
+
         $identities_to_be_added = array();
 
         if (!empty($json['_p2'])) {
@@ -371,6 +379,9 @@ class KissmetricsToDatabase
 
     private function getAliasesIdentity($identity)
     {
+        if (!getenv('DB_IDENTITIES_TABLE'))
+            return;
+
         $identity = pg_escape_string($identity);
         $query    = "SELECT identity1 FROM " . getenv('DB_IDENTITIES_TABLE') . " WHERE identity2 = '{$identity}'";
 
@@ -387,7 +398,9 @@ class KissmetricsToDatabase
     {
         $this->output("Optimizing Tables", true);
         $this->databaseQuery("VACUUM FULL " . getenv('DB_TABLE'));
-        $this->databaseQuery("VACUUM FULL " . getenv('DB_IDENTITIES_TABLE'));
+
+        if (getenv('DB_IDENTITIES_TABLE'))
+            $this->databaseQuery("VACUUM FULL " . getenv('DB_IDENTITIES_TABLE'));
     }
 
     private function deleteDuplicates()
@@ -425,6 +438,8 @@ class KissmetricsToDatabase
 
     public function getBaseIdentityDatabaseQuery()
     {
+        if (!getenv('DB_IDENTITIES_TABLE'))
+            return;
 
         if (empty($this->base_identity_insert_qry)) {
             $this->base_identity_insert_qry = "INSERT INTO " . getenv('DB_IDENTITIES_TABLE') . " (identity1, identity2) VALUES ";
