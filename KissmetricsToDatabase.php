@@ -70,7 +70,7 @@ class KissmetricsToDatabase
         $this->output("End " . getenv('DB_TABLE') . " Count: " . $this->end_datapoints_count . " (+" . $count_difference . ")", true);
 
 
-        if (!getenv('DB_IDENTITIES_TABLE')) {
+        if (getenv('DB_IDENTITIES_TABLE')) {
             $current_idcount_qry = $this->databaseQuery("SELECT COUNT(1) as ct FROM " . getenv('DB_IDENTITIES_TABLE') );
             $current_idcount_res = $this->databaseGetResult($current_idcount_qry);
             $this->end_identities_count = $current_idcount_res[0]['ct'];
