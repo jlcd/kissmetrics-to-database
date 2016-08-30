@@ -24,6 +24,12 @@ class KissmetricsToDatabase
     private $start_identities_count                 = 0;
     private $end_identities_count                   = 0;
 
+
+    /************
+    *
+        __construct
+    *
+    ************/
     public function __construct()
     {
         $this->exec_started = time();
@@ -56,6 +62,12 @@ class KissmetricsToDatabase
             $this->output("Start " . getenv('DB_IDENTITIES_TABLE') . " Count: " . $this->start_identities_count, true);
         }
     }
+
+    /************
+    *
+        __destruct
+    *
+    ************/
     public function __destruct()
     {
         $cleanup_title = ($this->dead ? "[DEAD] " : "")."Class Cleanup";
@@ -97,6 +109,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        config
+    *
+    ************/
     private function config()
     {
 
@@ -127,6 +144,11 @@ class KissmetricsToDatabase
         $this->output("Class Configured", true);
     }
 
+    /************
+    *
+        syncS3
+    *
+    ************/
     public function syncS3()
     {
         $this->output("Starting S3 Sync...", true);
@@ -139,6 +161,11 @@ class KissmetricsToDatabase
         $this->done();
     }
 
+    /************
+    *
+        syncS3
+    *
+    ************/
     public function processLocalS3Files()
     {
         $this->output("Processing Local S3 Files...", true);
@@ -214,6 +241,11 @@ class KissmetricsToDatabase
 
     }
 
+    /************
+    *
+        createNewDatabaseFields
+    *
+    ************/
     public function createNewDatabaseFields()
     {
         $this->output("Creating New Database Fields...", true);
@@ -240,6 +272,11 @@ class KissmetricsToDatabase
         $this->done();
     }
 
+    /************
+    *
+        insertNewEventsIntoDatabase
+    *
+    ************/
     public function insertNewEventsIntoDatabase()
     {
         $this->output("Inserting Data into the Database...", true);
@@ -325,9 +362,14 @@ class KissmetricsToDatabase
 
     }
 
+    /************
+    *
+        processIdentities
+    *
+    ************/
     private function processIdentities($json)
     {
-        if (!getenv('DB_IDENTITIES_TABLE'))
+        if (!getenv('CFG_PROCESS_IDENTITIES'))
             return;
 
         $identities_to_be_added = array();
@@ -362,26 +404,164 @@ class KissmetricsToDatabase
                 if ($identity1 == $identity2)
                     continue;
 
-                $concat_identities = $identity1 . '||' . $identity2;
-                if (strlen($concat_identities) > 32) {
-                    $concat_identities = md5($concat_identities);
-                }
-
-                if (!empty($this->known_identities[$concat_identities])) {
+                if ($this->isIdentityPairKnown($identity1,$identity2))
                     continue;
-                }
 
-                $this->known_identities[$concat_identities] = true;
+                $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
+
                 $this->databaseIdentityStashInsertValues("('{$identity1}','{$identity2}')");
             }
         }
     }
 
+    /************
+    *
+        isIdentityPairKnown
+    *
+    ************/
+    private function isIdentityPairKnown($identity1,$identity2) {
+        // To save memory
+        $concat_identities = $this->concatIdentityPair($identity1,$identity2);
+
+        // If identity pair is previously known, returns true
+        if (!empty($this->known_identities[$concat_identities])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /************
+    *
+        concatIdentityPair
+    *
+    ************/
+    private function concatIdentityPair($identity1,$identity2) {
+        $concat_identities = $identity1 . '||' . $identity2;
+        if (strlen($concat_identities) > 32) {
+            $concat_identities = md5($concat_identities);
+        }
+
+        return $concat_identities;
+    }
+
+    /************
+    *
+        setKnownIdentity
+    *
+    ************/
+    private function setKnownIdentity($concat_id_pair) {
+        $this->known_identities[$concat_id_pair] = true;
+    }
+
+    /************
+    *
+        processIdentitiesStandalone
+    *
+    ************/
+    public function processIdentitiesStandalone () {
+        $this->output("Processing identities from the main table...", true);
+
+        $this->registerAllKnownIdentities();
+
+        $this->output("Reading aliases...", true);
+        $aliases = $this->getAllAliasesDatapoints();
+        foreach ($aliases as $alias) {
+            $identity1 = $alias['_p'];
+            $identity2 = $alias['_p2'];
+
+            // If has @ symbol (email), ignores it
+            if (strpos($identity1, '@') !== FALSE)
+                continue;
+
+            if ($this->isIdentityPairKnown($identity1,$identity2))
+                continue;
+
+            // Registers the identity pair as known
+            $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
+
+            // Adds new identity pair to the insert stack
+            $this->databaseIdentityStashInsertValues("('".$identity1."','".$identity2."')");
+        }
+
+        $this->output("Reading emails updates...", true);
+        $datapoints = $this->getAllUpdatedEmailDatapoints();
+        foreach ($datapoints as $datapoint) {
+            $identity1 = $datapoint['new_email'];
+            $identity2 = $datapoint['previous_email'];
+
+            if ($this->isIdentityPairKnown($identity1,$identity2))
+                continue;
+
+            // Registers the identity pair as known
+            $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
+
+            // Adds new identity pair to the insert stack
+            $this->databaseIdentityStashInsertValues("('".$identity1."','".$identity2."')");
+        }
+
+        $this->output("Saving identities to the database...", true);
+        // Saves new identities to the database
+        $this->databaseCommitIdentityStashValues();
+    }
+
+    /************
+    *
+        getAllAliasesDatapoints
+    *
+    ************/
+    private function getAllAliasesDatapoints() {
+        $query    = "SELECT * FROM " . getenv('DB_TABLE'). " WHERE _p2 != '';";
+
+        $alias_qry     = $this->databaseQuery($query);
+        $alias_res     = $this->databaseGetResult($alias_qry);
+        $aliases = array();
+        foreach ($alias_res as $row) {
+            $aliases[] = $row;
+        }
+        return $aliases;
+    }
+
+    /************
+    *
+        getAllUpdatedEmailDatapoints
+    *
+    ************/
+    private function getAllUpdatedEmailDatapoints() {
+        $query    = "SELECT * FROM " . getenv('DB_TABLE'). " WHERE _n_not_null LIKE 'updated email';";
+
+        $updated_email_qry     = $this->databaseQuery($query);
+        $updated_email_res     = $this->databaseGetResult($updated_email_qry);
+        $datapoints = array();
+        foreach ($updated_email_res as $row) {
+            $datapoints[] = $row;
+        }
+        return $datapoints;
+    }
+
+    /************
+    *
+        registerAllKnownIdentities
+    *
+    ************/
+    private function registerAllKnownIdentities() {
+        $query    = "SELECT * FROM " . getenv('DB_IDENTITIES_TABLE');
+
+        $id_qry     = $this->databaseQuery($query);
+        $id_res     = $this->databaseGetResult($id_qry);
+        foreach ($id_res as $id) {
+            $this->setKnownIdentity($this->concatIdentityPair($id['identity1'],$id['identity2']));
+        }
+        return true;
+    }
+
+    /************
+    *
+        getAliasesIdentity
+    *
+    ************/
     private function getAliasesIdentity($identity)
     {
-        if (!getenv('DB_IDENTITIES_TABLE'))
-            return;
-
         $identity = pg_escape_string($identity);
         $query    = "SELECT identity1 FROM " . getenv('DB_IDENTITIES_TABLE') . " WHERE identity2 = '{$identity}'";
 
@@ -394,6 +574,11 @@ class KissmetricsToDatabase
         return $identities;
     }
 
+    /************
+    *
+        databaseOptimizeTables
+    *
+    ************/
     private function databaseOptimizeTables()
     {
         $this->output("Optimizing Tables", true);
@@ -403,6 +588,11 @@ class KissmetricsToDatabase
             $this->databaseQuery("VACUUM FULL " . getenv('DB_IDENTITIES_TABLE'));
     }
 
+    /************
+    *
+        deleteDuplicates
+    *
+    ************/
     private function deleteDuplicates()
     {
         $this->output("Deleting Duplicates... (@TBD)", true);
@@ -421,6 +611,11 @@ class KissmetricsToDatabase
         $this->done();
     }
 
+    /************
+    *
+        getBaseInsertDatabaseQuery
+    *
+    ************/
     public function getBaseInsertDatabaseQuery()
     {
 
@@ -436,11 +631,13 @@ class KissmetricsToDatabase
 
     }
 
+    /************
+    *
+        getBaseIdentityDatabaseQuery
+    *
+    ************/
     public function getBaseIdentityDatabaseQuery()
     {
-        if (!getenv('DB_IDENTITIES_TABLE'))
-            return;
-
         if (empty($this->base_identity_insert_qry)) {
             $this->base_identity_insert_qry = "INSERT INTO " . getenv('DB_IDENTITIES_TABLE') . " (identity1, identity2) VALUES ";
         }
@@ -449,6 +646,11 @@ class KissmetricsToDatabase
 
     }
 
+    /************
+    *
+        getLastReadLocalS3File
+    *
+    ************/
     private function getLastReadLocalS3File()
     {
         if ($this->last_read_local_s3_file === null) {
@@ -462,16 +664,31 @@ class KissmetricsToDatabase
         return (int) $this->last_read_local_s3_file;
     }
 
+    /************
+    *
+        setLastReadLocalS3File
+    *
+    ************/
     private function setLastReadLocalS3File($file)
     {
         file_put_contents(getenv('LOCAL_S3_LAST_READ_FILENAME'), $file);
     }
 
+    /************
+    *
+        rollbackLastReadLocalS3File
+    *
+    ************/
     private function rollbackLastReadLocalS3File()
     {
         $this->setLastReadLocalS3File($this->starting_read_local_s3_file);
     }
 
+    /************
+    *
+        databaseConnect
+    *
+    ************/
     public function databaseConnect()
     {
         $this->output("Connecting to Database...", true);
@@ -485,6 +702,11 @@ class KissmetricsToDatabase
         $this->done();
     }
 
+    /************
+    *
+        databaseQuery
+    *
+    ************/
     private function databaseQuery($query)
     {
         if (empty($this->db_conn)) {
@@ -497,10 +719,20 @@ class KissmetricsToDatabase
         return $qry;
     }
 
+    /************
+    *
+        databaseEmptyResult
+    *
+    ************/
     private function databaseEmptyResult () {
         while (pg_get_result($this->db_conn)) {}
     }
 
+    /************
+    *
+        databaseGetResult
+    *
+    ************/
     private function databaseGetResult($result)
     {
         $r = array();
@@ -510,6 +742,11 @@ class KissmetricsToDatabase
         return $r;
     }
 
+    /************
+    *
+        databaseStashInsertValues
+    *
+    ************/
     private function databaseStashInsertValues($query)
     {
         $this->db_stash_insert_values[] = $query;
@@ -519,6 +756,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        databaseIdentityStashInsertValues
+    *
+    ************/
     private function databaseIdentityStashInsertValues($query)
     {
         $this->db_identity_stash_insert_values[] = $query;
@@ -528,6 +770,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        databaseCommitStashValues
+    *
+    ************/
     private function databaseCommitStashValues()
     {
         if (!empty($this->db_stash_insert_values)) {
@@ -541,6 +788,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        databaseCommitIdentityStashValues
+    *
+    ************/
     private function databaseCommitIdentityStashValues()
     {
         if (!empty($this->db_identity_stash_insert_values)) {
@@ -554,16 +806,31 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        getDatabaseError
+    *
+    ************/
     private function getDatabaseError()
     {
         return pg_last_error($this->db_conn);
     }
 
+    /************
+    *
+        done
+    *
+    ************/
     private function done()
     {
         $this->output("&#x2713; Done<hr />", true);
     }
 
+    /************
+    *
+        createJsBaseScript
+    *
+    ************/
     private function createJsBaseScript()
     {
         echo "	<script>
@@ -581,6 +848,11 @@ class KissmetricsToDatabase
 				</script>";
     }
 
+    /************
+    *
+        databaseOutput
+    *
+    ************/
     public function databaseOutput($eta,$file) {
         $qtyIdentities = count($this->known_identities);
         $this->output("ETA: {$eta}
@@ -588,6 +860,11 @@ class KissmetricsToDatabase
                         <br>Datapoints: {$this->queriesData} (" . round((($this->queriesData) / $this->total_local_s3_rows) * 100, 1) . "%)
                         <br>Identitiy Pairs Found: {$qtyIdentities}");
     }
+    /************
+    *
+        output
+    *
+    ************/
     public function output($msg, $new_group = false)
     {
 
@@ -611,6 +888,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        outputJs
+    *
+    ************/
     public function outputJs($msg)
     {
         $msg = str_replace(array("\r", "\n"), "", $msg);
@@ -618,13 +900,28 @@ class KissmetricsToDatabase
         echo PHP_EOL . "<script>m('{$this->output_group}', '$msg');</script>";
     }
 
+    /************
+    *
+        outputNatural
+    *
+    ************/
     public function outputNatural($msg)
     {
         echo PHP_EOL . $msg . "<br />";
     }
 
+    /************
+    *
+        sanitizeDecodeJson
+    *
+    ************/
     private function sanitizeDecodeJson($string)
     {
+    /************
+    *
+        "/(.*?
+    *
+    ************/
         $string = preg_replace_callback("/(.*?)(\ ?\:\ {0,}?\"?)(.*?)(\"?(}|, |,))/", function ($m) {
             return $m[1] . $m[2] . addslashes($m[3]) . $m[4];
         }, $string);
@@ -633,11 +930,21 @@ class KissmetricsToDatabase
         return json_decode($string, true);
     }
 
+    /************
+    *
+        sanitizeKey
+    *
+    ************/
     private function sanitizeKey($key)
     {
         return str_replace(array('-', '_', ' '), '_', $key);
     }
 
+    /************
+    *
+        _die
+    *
+    ************/
     public function _die($msg)
     {
         $this->dead = true;
@@ -651,6 +958,11 @@ class KissmetricsToDatabase
         exit;
     }
 
+    /************
+    *
+        sendMail
+    *
+    ************/
     public function sendMail($content)
     {
         $mail = new \PHPMailer;
@@ -679,6 +991,11 @@ class KissmetricsToDatabase
         }
     }
 
+    /************
+    *
+        isPhpCli
+    *
+    ************/
     public function isPhpCli()
     {
         return (php_sapi_name() === 'cli');
@@ -701,6 +1018,11 @@ class KissmetricsToDatabase
      * @param integer $precision Optional precision
      * @return string time difference
      */
+    /************
+    *
+        getDateDiff
+    *
+    ************/
     public function getDateDiff($time1, $time2, $precision = 3)
     {
         // If not numeric then convert timestamps
@@ -754,6 +1076,11 @@ class KissmetricsToDatabase
         return implode(", ", $times);
     }
 
+    /************
+    *
+        secondsToTime
+    *
+    ************/
     private function secondsToTime($seconds)
     {
         $dtF = new \DateTime('@0');
