@@ -36,7 +36,7 @@ class KissmetricsToDatabase
     {
         $this->exec_started = time();
 
-        $dotenv = new Dotenv\Dotenv(getenv("CFG_BASE_PATH"));
+        $dotenv = new Dotenv\Dotenv(dirname($_SERVER["SCRIPT_FILENAME"]));
         $dotenv->load();
 
         if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') == "true" && !$this->isPhpCli()) {
