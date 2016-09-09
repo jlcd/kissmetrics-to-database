@@ -1,6 +1,7 @@
 <?php
 
 namespace KissmetricsToDatabase;
+use Dotenv;
 
 class KissmetricsToDatabase
 {
@@ -16,6 +17,7 @@ class KissmetricsToDatabase
     private $total_local_s3_rows                    = null;
     private $exec_started                           = null;
     private $known_identities                       = null;
+    private $known_identities_pairs                 = null;
     private $dead                                   = false;
     private $queriesData                            = 0;
     private $queriesDataIdentities                  = 0;
@@ -34,14 +36,17 @@ class KissmetricsToDatabase
     {
         $this->exec_started = time();
 
-        if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') && !$this->isPhpCli()) {
+        $dotenv = new Dotenv\Dotenv(__DIR__);
+        $dotenv->load();
+
+        if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') == "true" && !$this->isPhpCli()) {
             $this->createJsBaseScript();
         }
 
         echo "<body>";
         $this->output("Started: " . date('H:i:s'), true);
 
-        if (getenv('CFG_USE_LOCK_FILE') && file_exists(getenv('CFG_LOCK_FILE'))) {
+        if (getenv('CFG_USE_LOCK_FILE') == "true" && file_exists(getenv('CFG_LOCK_FILE'))) {
             $this->_die("Lock file found");
         }
         file_put_contents(getenv('CFG_LOCK_FILE'), time());
@@ -96,14 +101,14 @@ class KissmetricsToDatabase
         $this->output("Exec time: " . $this->getDateDiff(time(), $this->exec_started), true);
 
         if (!$this->dead) {
-            if (getenv('CFG_USE_LOCK_FILE')) {
+            if (getenv('CFG_USE_LOCK_FILE') == "true") {
                 unlink(getenv('CFG_LOCK_FILE'));
             }
         }
 
         echo "</body>";
 
-        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') && $this->isPhpCli()) {
+        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') == "true" && $this->isPhpCli()) {
             $output = ob_get_clean();
             $this->sendMail($output);
         }
@@ -117,12 +122,12 @@ class KissmetricsToDatabase
     private function config()
     {
 
-        if (getenv('DB_MODIFY_CONNECT_TIMEOUT')) {
+        if (getenv('DB_MODIFY_CONNECT_TIMEOUT') == "true") {
             ini_set('mysql.connect_timeout', getenv('DB_MODIFY_CONNECT_TIMEOUT_TO'));
             ini_set('default_socket_timeout', getenv('DB_MODIFY_CONNECT_TIMEOUT_TO'));
         }
 
-        if (getenv('CFG_SHOW_ERRORS')) {
+        if (getenv('CFG_SHOW_ERRORS') == "true") {
             error_reporting(E_ALL);
             ini_set('display_errors', 1);
         }
@@ -131,13 +136,13 @@ class KissmetricsToDatabase
 
         $this->starting_read_local_s3_file = $this->getLastReadLocalS3File();
 
-        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') && $this->isPhpCli()) {
+        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') == "true" && $this->isPhpCli()) {
             ob_start();
         } else if (getenv('CFG_USE_AUTO_FLUSH')) {
             ob_implicit_flush(true);
         }
 
-        if (getenv('CFG_EXTEND_MEMORY')) {
+        if (getenv('CFG_EXTEND_MEMORY') == "true") {
             ini_set('memory_limit', getenv('CFG_EXTEND_MEMORY_TO'));
         }
 
@@ -321,7 +326,12 @@ class KissmetricsToDatabase
 
                             $this->databaseStashInsertValues("(" . implode(",", $insert_values) . ")");
 
-                            $this->processIdentities($json);
+                            if (getenv('CFG_PROCESS_IDENTITIES') == "true") {
+                                if (!empty($json['_p2'])) {
+                                    $this->processIdentities($json['_p'],$json['_p2']);
+                                }
+                            }
+                            
                             $total_queries_so_far = ($this->queriesDataIdentities + $this->queriesData);
                             if (($last_output + 1000) < $total_queries_so_far) {
                                 $last_output = $total_queries_so_far;
@@ -349,14 +359,14 @@ class KissmetricsToDatabase
             $this->setLastReadLocalS3File($file);
         }
 
-        if (getenv('DB_OPTIMIZE_TABLES_AFTER_INSERTS')) {
+        if (getenv('DB_OPTIMIZE_TABLES_AFTER_INSERTS') == "true") {
             $this->databaseOptimizeTables();
         }
 
         $this->output("", true);
         $this->done();
 
-        if (getenv('DB_DELETE_DUPLICATES_AFTER_INSERTS')) {
+        if (getenv('DB_DELETE_DUPLICATES_AFTER_INSERTS') == "true") {
             $this->deleteDuplicates();
         }
 
@@ -367,35 +377,24 @@ class KissmetricsToDatabase
         processIdentities
     *
     ************/
-    private function processIdentities($json)
+    private function processIdentities($identity1,$identity2)
     {
-        if (!getenv('CFG_PROCESS_IDENTITIES'))
-            return;
-
         $identities_to_be_added = array();
 
-        if (!empty($json['_p2'])) {
+        $identities_to_be_added[$identity1] = $identity1;
 
-            # _p
+        $identities_p = $this->getAliasesIdentity($identity1);
 
-            $identities_to_be_added[$json['_p']] = $json['_p'];
+        foreach ($identities_p as $id) {
+            $identities_to_be_added[$id] = $id;
+        }
 
-            $identities_p = $this->getAliasesIdentity($json['_p']);
+        $identities_to_be_added[$identity2] = $identity2;
 
-            foreach ($identities_p as $id) {
-                $identities_to_be_added[$id] = $id;
-            }
+        $identities_p2 = $this->getAliasesIdentity($identity2);
 
-            # _p2
-
-            $identities_to_be_added[$json['_p2']] = $json['_p2'];
-
-            $identities_p2 = $this->getAliasesIdentity($json['_p2']);
-
-            foreach ($identities_p2 as $id) {
-                $identities_to_be_added[$id] = $id;
-            }
-
+        foreach ($identities_p2 as $id) {
+            $identities_to_be_added[$id] = $id;
         }
 
         foreach ($identities_to_be_added as $identity1) {
@@ -407,11 +406,73 @@ class KissmetricsToDatabase
                 if ($this->isIdentityPairKnown($identity1,$identity2))
                     continue;
 
-                $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
+                $this->setKnownIdentity($identity1,$identity2);
 
                 $this->databaseIdentityStashInsertValues("('{$identity1}','{$identity2}')");
             }
         }
+
+    }
+
+    /************
+    *
+        processIdentitiesFromAllDatapoints
+    *
+    ************/
+    public function processIdentitiesFromAllDatapoints () {
+        $this->output("Processing identities from the datapoints table...", true);
+
+        $this->registerAllKnownIdentities();
+
+        $this->output("Reading aliases...", true);
+        $aliases_read = 0;
+        $aliases = $this->getAllAliasesDatapoints();
+        $identities_to_add = array();
+        foreach ($aliases as $alias) {
+            $identity1 = $alias['_p'];
+            $identity2 = $alias['_p2'];
+
+            // If has @ symbol (email), ignores it
+            if (strpos($identity1, '@') !== FALSE)
+                continue;
+
+            $this->manageIdentityPairs($identity1,$identity2);
+            if (count($this->known_identity_pairs) > ($aliases_read+1000)) {
+                $aliases_read = count($this->known_identity_pairs);
+                $this->output("({$aliases_read})");
+            }
+        }
+
+        $this->output("Reading emails updates...", true);
+        $datapoints = $this->getAllUpdatedEmailDatapoints();
+        foreach ($datapoints as $datapoint) {
+            $identity1 = $datapoint['_p'];
+            $identity2 = $datapoint['new_email'];
+
+            $this->manageIdentityPairs($identity1,$identity2);
+
+            $identity1 = $datapoint['new_email'];
+            $identity2 = $datapoint['previous_email'];
+
+            $this->manageIdentityPairs($identity1,$identity2);
+
+            if (count($this->known_identity_pairs) > ($aliases_read+1000)) {
+                $aliases_read = count($this->known_identity_pairs);
+                $this->output("({$aliases_read})");
+            }
+        }
+
+        $this->output("Saving identities to the database...", true);
+        foreach ($this->known_identity_pairs as $id1 => $identities) {
+            foreach ($identities as $id2 => $identity) {
+                $this->databaseIdentityStashInsertValues("('{$id1}','{$id2}')");
+            }
+        }
+
+        // Saves new identities to the database
+        $this->databaseCommitIdentityStashValues();
+
+        $this->output("Done!", true);
     }
 
     /************
@@ -450,59 +511,36 @@ class KissmetricsToDatabase
         setKnownIdentity
     *
     ************/
-    private function setKnownIdentity($concat_id_pair) {
-        $this->known_identities[$concat_id_pair] = true;
+    private function setKnownIdentity($id1, $id2) {
+        $concat_ids = $this->concatIdentityPair($id1,$id2);
+        $this->known_identities[$concat_ids] = true;
+        $this->manageIdentityPairs($id1,$id2);
     }
 
     /************
     *
-        processIdentitiesStandalone
+        manageIdentityPairs
     *
     ************/
-    public function processIdentitiesStandalone () {
-        $this->output("Processing identities from the main table...", true);
+    private function manageIdentityPairs($id1, $id2) {
+        $identities_to_change = array();
+        $identities_to_change[] = $id1;
+        $identities_to_change[] = $id2;
 
-        $this->registerAllKnownIdentities();
-
-        $this->output("Reading aliases...", true);
-        $aliases = $this->getAllAliasesDatapoints();
-        foreach ($aliases as $alias) {
-            $identity1 = $alias['_p'];
-            $identity2 = $alias['_p2'];
-
-            // If has @ symbol (email), ignores it
-            if (strpos($identity1, '@') !== FALSE)
-                continue;
-
-            if ($this->isIdentityPairKnown($identity1,$identity2))
-                continue;
-
-            // Registers the identity pair as known
-            $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
-
-            // Adds new identity pair to the insert stack
-            $this->databaseIdentityStashInsertValues("('".$identity1."','".$identity2."')");
+        if (!empty($this->known_identity_pairs[$id1])) {
+            $identities_to_change = array_unique(array_merge($this->known_identity_pairs[$id1],$identities_to_change));
         }
 
-        $this->output("Reading emails updates...", true);
-        $datapoints = $this->getAllUpdatedEmailDatapoints();
-        foreach ($datapoints as $datapoint) {
-            $identity1 = $datapoint['new_email'];
-            $identity2 = $datapoint['previous_email'];
-
-            if ($this->isIdentityPairKnown($identity1,$identity2))
-                continue;
-
-            // Registers the identity pair as known
-            $this->setKnownIdentity($this->concatIdentityPair($identity1,$identity2));
-
-            // Adds new identity pair to the insert stack
-            $this->databaseIdentityStashInsertValues("('".$identity1."','".$identity2."')");
+        if (!empty($this->known_identity_pairs[$id2])) {
+            $identities_to_change = array_unique(array_merge($this->known_identity_pairs[$id2],$identities_to_change));
         }
 
-        $this->output("Saving identities to the database...", true);
-        // Saves new identities to the database
-        $this->databaseCommitIdentityStashValues();
+        foreach($identities_to_change as $v1) {
+            foreach($identities_to_change as $v2) {
+                $this->known_identity_pairs[$v1][$v2] = $v2;
+                $this->known_identity_pairs[$v2][$v1] = $v1;
+            }
+        }
     }
 
     /************
@@ -517,7 +555,10 @@ class KissmetricsToDatabase
         $alias_res     = $this->databaseGetResult($alias_qry);
         $aliases = array();
         foreach ($alias_res as $row) {
-            $aliases[] = $row;
+            $aliases[] = array(
+                '_p' => $row['_p'],
+                '_p2' => $row['_p2']
+            );
         }
         return $aliases;
     }
@@ -534,7 +575,11 @@ class KissmetricsToDatabase
         $updated_email_res     = $this->databaseGetResult($updated_email_qry);
         $datapoints = array();
         foreach ($updated_email_res as $row) {
-            $datapoints[] = $row;
+            $datapoints[] = array(
+                '_p' => $row['_p'],
+                'new_email' => $row['new_email'],
+                'previous_email' => $row['previous_email']
+            );
         }
         return $datapoints;
     }
@@ -550,7 +595,7 @@ class KissmetricsToDatabase
         $id_qry     = $this->databaseQuery($query);
         $id_res     = $this->databaseGetResult($id_qry);
         foreach ($id_res as $id) {
-            $this->setKnownIdentity($this->concatIdentityPair($id['identity1'],$id['identity2']));
+            $this->manageIdentityPairs($id['identity1'],$id['identity2']);
         }
         return true;
     }
@@ -872,7 +917,7 @@ class KissmetricsToDatabase
             $this->output_group++;
         }
 
-        if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') && !$this->isPhpCli()) {
+        if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') == "true" && !$this->isPhpCli()) {
             $this->outputJs($msg);
         } else {
             $this->outputNatural($msg);
@@ -882,7 +927,7 @@ class KissmetricsToDatabase
             $this->output_group++;
         }
 
-        if (getenv('CFG_USE_AUTO_FLUSH') && !(getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') && $this->isPhpCli())) {
+        if (getenv('CFG_USE_AUTO_FLUSH') == "true" && !(getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') && $this->isPhpCli())) {
             flush();
             ob_flush();
         }
@@ -950,7 +995,7 @@ class KissmetricsToDatabase
         $this->dead = true;
         $this->output($msg, true);
 
-        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') && $this->isPhpCli()) {
+        if (getenv('CFG_EMAIL_SEND_OUTPUT_EMAIL_WHEN_PHP_CLI') == "true" && $this->isPhpCli()) {
             $output = ob_get_clean();
             $this->sendMail($output);
         }
