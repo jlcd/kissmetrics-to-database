@@ -1,6 +1,7 @@
 <?php
 
 namespace KissmetricsToDatabase;
+
 use Dotenv;
 
 class KissmetricsToDatabase
