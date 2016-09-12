@@ -522,10 +522,46 @@ class KissmetricsToDatabase
         manageIdentityPairs
     *
     ************/
+    private $identitiesFile;
+
     private function manageIdentityPairs($id1, $id2) {
-        $identities_to_change = array();
-        $identities_to_change[] = $id1;
-        $identities_to_change[] = $id2;
+        # hold all identities from this user here
+        $identities = [$id1, $id2];
+
+        # Verify if the current identity already exists
+        # into out has table and remove it
+        foreach ([$id1, $id2] as $id) {
+            $hash = sha1($id);
+            if (!array_key_exists($hash, $this->identities)) {
+                continue;  # the identity is new, let's skip it
+            }
+            $identities = array_merge($identities, $this->identities[$hash]);
+        }
+
+        # Remove duplicate identities
+        $identities = array_unique($identities);
+
+        # Order the identities alphabeticly ascending
+        sort($identities, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $sign = sha1(implode('|', $identities));
+
+        if (
+
+        foreach ([$id1, $id2] as $id) {
+            if (!array_key_exists($id, $this->known_identity_pairs)) {
+                continue;  # go ahead since it's not exists
+            }
+
+            $identities_to_change = array_unique(
+                array_merge(
+                    $this->known_identity_pairs[sha1($id)],
+                    $identities_to_change
+                )
+            );
+
+            $
+
 
         if (!empty($this->known_identity_pairs[$id1])) {
             $identities_to_change = array_unique(array_merge($this->known_identity_pairs[$id1],$identities_to_change));

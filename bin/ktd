@@ -1,0 +1,25 @@
+#!/usr/bin/env php
+<?php
+/** vim: set ft=php */
+/**
+ * Kiss metrics to Database
+ *
+ * Tool for import kiss metrics data to Amazon Red Shift
+ */
+
+require __DIR__.'/../vendor/autoload.php';
+
+use Dotenv\Dotenv;
+use Symfony\Component\Console\Application;
+
+// Load the configuration
+$dotenv = new Dotenv(__DIR__.'/../');
+$dotenv->load();
+
+$container = require __DIR__.'/../config.php';
+
+// Instanciate a new application
+$app = new Application('Kiss Metrics to Database', '0.2');
+$app->add($container['command.load-events']);
+$app->run();
+
