@@ -37,9 +37,6 @@ class KissmetricsToDatabase
     {
         $this->exec_started = time();
 
-        $dotenv = new Dotenv\Dotenv(dirname($_SERVER["SCRIPT_FILENAME"]));
-        $dotenv->load();
-
         if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') == "true" && !$this->isPhpCli()) {
             $this->createJsBaseScript();
         }
@@ -148,23 +145,6 @@ class KissmetricsToDatabase
         }
 
         $this->output("Class Configured", true);
-    }
-
-    /************
-    *
-        syncS3
-    *
-    ************/
-    public function syncS3()
-    {
-        $this->output("Starting S3 Sync...", true);
-
-        $cmd = 'export AWS_DEFAULT_REGION="us-east-1";';
-        $cmd .= getenv('AWS_BIN_PATH') . ' s3 sync ' . getenv('AWS_S3_SOURCE_URL') . ' ' . getenv('LOCAL_S3_TARGET_DIR') . ' 2>&1';
-
-        $this->output(nl2br(shell_exec($cmd)), true);
-
-        $this->done();
     }
 
     /************
