@@ -13,9 +13,8 @@ Import files from Kiss Metrics to a Red Shift instance
 
 Follow this instructions to have this app running:
 
-1.: Clone this repository into your server;
-2.: Run `composer install` at the repository root;
-3.: Edit the `.env` file with your credentials;
-4.: You're ready!
-
+1. Clone this repository into your server;
+2. Run `composer install` at the repository root;
+3. Edit the `.env` file with your credentials;
+4. You're ready!
 
