@@ -5,7 +5,6 @@ namespace KissmetricsToDatabase\Commands;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use KissmetricsToDatabase\Operations;
 
 class LoadEventsCommand extends Command
 {
@@ -37,7 +36,9 @@ class LoadEventsCommand extends Command
     {
         // syncronize the local directory with the S3 Bucket
         // that contains all files from Kiss Metrics
-        $syncOp = 
+        $syncOp = $this->operations['s3-sync'];
+        $syncOp->execute();
+
         // list of operations to be executed (in order of execution)
         $operationsToExecute = [
             'sync-s3-bucket',
