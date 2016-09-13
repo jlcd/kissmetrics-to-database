@@ -197,9 +197,7 @@ class KissmetricsToDatabase
                             if (!$json) {
                                 $this->output(print_r("[{$file}] Couldn't parse json: " . htmlentities($line), true), true);
                             } else {
-                                # Defines fields that are not in the json file but are in the database for processing/logic purposes
-                                $json['_n_not_null'] = (empty($json['_n']) ? '' : $json['_n']);
-                                $json['md5hash'] = '';
+                                
 
                                 $array_keys = array_keys($json);
 
@@ -970,16 +968,6 @@ class KissmetricsToDatabase
     public function outputNatural($msg)
     {
         echo PHP_EOL . $msg . "<br />";
-    }
-
-    /************
-    *
-        sanitizeKey
-    *
-    ************/
-    private function sanitizeKey($key)
-    {
-        return str_replace(array('-', '_', ' '), '_', $key);
     }
 
     /************

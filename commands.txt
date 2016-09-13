@@ -1,12 +1,12 @@
 <?php
 require 'vendor/autoload.php';
 
-$KissmetricsToDatabase = new KissmetricsToDatabase\KissmetricsToDatabase();
+Done! $KissmetricsToDatabase = new KissmetricsToDatabase\KissmetricsToDatabase();
 DONE! $KissmetricsToDatabase->syncS3();
 DONE! $KissmetricsToDatabase->processLocalS3Files();
 DONE! $KissmetricsToDatabase->databaseConnect();
 DONE! $KissmetricsToDatabase->createNewDatabaseFields();
-$KissmetricsToDatabase->insertNewEventsIntoDatabase();
+DONE! $KissmetricsToDatabase->insertNewEventsIntoDatabase();
 
 
 
@@ -14,7 +14,7 @@ $KissmetricsToDatabase->insertNewEventsIntoDatabase();
 <?php
 require 'vendor/autoload.php';
 
-$KissmetricsToDatabase = new KissmetricsToDatabase\KissmetricsToDatabase();
-$KissmetricsToDatabase->databaseConnect();
+DONE! $KissmetricsToDatabase = new KissmetricsToDatabase\KissmetricsToDatabase();
+DONE! $KissmetricsToDatabase->databaseConnect();
 $KissmetricsToDatabase->processIdentitiesStandalone();
 
