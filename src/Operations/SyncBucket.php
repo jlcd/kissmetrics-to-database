@@ -2,10 +2,10 @@
 
 namespace KissmetricsToDatabase\Operations;
 
-use Aws\S3\S3Client;
+use Aws\S3\S3ClientInterface;
 use Aws\S3\Transfer;
 
-class SyncBucket
+class SyncBucket implements OperationInterface
 {
     /**
      * @var S3Client $client
@@ -22,7 +22,7 @@ class SyncBucket
      */
     private $destination;
 
-    public function __construct(S3Client $client, array $options = [])
+    public function __construct(S3ClientInterface $client, array $options = [])
     {
         $this->client = $client;
         if (array_key_exists('source', $options)) {

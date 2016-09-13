@@ -1,8 +1,10 @@
 .env
 .DS_Store
-/vendor
-/node_modules
+vendor
+node_modules
 composer.lock
+km-files
+last-read-file
 
 /s3
 .s3ToDatabase_LastFileRead
