@@ -30,17 +30,14 @@ class RedShiftImporter
     /**
      * @param PDO $client
      */
-    public function __construct(PDO $client, $table, $fieldType)
+    public function __construct(PDO $client)
     {
         $this->client = $client;
-        $this->tableName = $tableName;
-        $this->fieldType = $fieldType;
 
         $statament = $client->prepare(
             'SELECT column_name FROM information_schema.columns
-            WHERE table_name = :table'
+            WHERE table_name = tb_event'
         );
-        $statement->bindValue(':table', $tableName);
         $statement->execute();
 
         $rows = $statement->fetch(PDO::FETCH_ASSOC);
@@ -58,11 +55,9 @@ class RedShiftImporter
         $newColumns = array_diff($possibleColumns, $this->columns);
         foreach ($newColumns as $newColumn) {
             $statement = $this->client->prepare(
-                'ALTER TABLE :table ADD :column :type'
+                'ALTER TABLE tb_event ADD :column TEXT'
             );
-            $statament->bindValue(':table', $this->tableName);
             $statament->bindValue(':column', $newColumn);
-            $statament->bindValue(':type', $this->fieldType);
             $statament->execute();
 
             $this->columns[] = $newColumn;
@@ -80,13 +75,12 @@ class RedShiftImporter
         });
 
         $sql = sprintf(
-            'INSERT INTO :table (%s) VALUES (%s)',
+            'INSERT INTO tb_event (%s) VALUES (%s)',
             implode(',', $columns),
             implode(',', $binds)
         );
 
         $statement = $this->client->prepare($sql);
-        $statament->bindValue(':table', $this->tableName);
         foreach ($row as $column => $value) {
             $statement->bindValue(':' . $column, $value);
         }

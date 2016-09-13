@@ -29,16 +29,10 @@ class LoadEventsCommand extends Command
     /**
      * @param array $directories
      */
-    public function __construct(
-        RedShiftImporter $importer,
-        SyncBucket $syncBucket,
-        array $directories
-    )
+    public function __construct(array $directories)
     {
         parent::__construct();
 
-        $this->importer = $importer;
-        $this->syncBucket = $syncBucket;
         $this->directories = $directories;
     }
 
@@ -50,8 +44,11 @@ class LoadEventsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $output->writeln('Sync our local folder with the S3 Bucket');
-        $this->syncBucket->sync();
+        $output->writeln('Sync our local folder with the S3 Bucket...');
+        $sync = $this->getApplication()->make('operations.s3-sync');
+        $sync->sync();
+        
+        return;
 
         $output->writeln('Getting the list of files to be processed...');
         $finder = new Finder();
@@ -71,6 +68,8 @@ class LoadEventsCommand extends Command
             });
         }
 
+        $importer = $this->getApplication()
+            ->make('operations.red-shift-importer');
         foreach ($finder as $file) {
             $loaded = $this->importer->importFrom($file);
             if ($loaded) {

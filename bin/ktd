@@ -9,17 +9,34 @@
 
 require __DIR__.'/../vendor/autoload.php';
 
-use Dotenv\Dotenv;
-use Symfony\Component\Console\Application;
-
 // Load the configuration
-$dotenv = new Dotenv(__DIR__.'/../');
+$dotenv = new Dotenv\Dotenv(__DIR__.'/../');
 $dotenv->load();
+
+$workDir = getenv('WORK_DIR');
+if (!is_writable($workDir)) {
+    echo 'The dir ' . $workDir . ' must be writable.' . PHP_EOL;
+    echo 'Please fix it or change your config ';
+    echo 'to work in a writable dir.' . PHP_EOL;
+    exit(1);
+}
+
+$filesDir = getenv('FILES_DIR');
+if (!file_exists($filesDir) || !is_dir($filesDir)) {
+    mkdir($filesDir, 0777, true); // creates the dir file
+}
+
+unset($workDir);
+unset($filesDir);
 
 $container = require __DIR__.'/../config.php';
 
 // Instanciate a new application
-$app = new Application('Kiss Metrics to Database', '0.2');
+$app = new KissmetricsToDatabase\Application(
+    'Kiss Metrics to Database',
+    '0.2',
+    $container
+);
 $app->add($container['command.load-events']);
 $app->run();
 

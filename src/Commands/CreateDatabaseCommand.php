@@ -18,6 +18,18 @@ class CreateDatabaseCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        $client = $this->getApplication()->make('redshift.client');
+        $eventSql = 'CREATE TABLE tb_event ()';
+
+        $client->exec($eventSql);
+
+        $identitySql = <<<SQL
+CREATE TABLE tb_identity (
+    id SERIAL PRIMARY KEY,
+    identity VARCHAR(100)[]
+)
+SQL;
+        $client->exec($identitySql);
     }
 }
 

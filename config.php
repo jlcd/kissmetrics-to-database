@@ -5,30 +5,14 @@
 $container = new Pimple\Container();
 
 $container['aws.s3.client'] = $container->factory(function () {
-    return new Aws\S3\S3MultiRegionClient(['version' => 'latest']);
-});
-
-$container['operations.sync-s3-bucket'] = $container->factory(function ($c) {
-    return new KissmetricsToDatabase\Operations\SyncBucket(
-        $c['aws.s3.client'],
-        [
-            'source' => getenv('AWS_S3_BUCKET'),
-            'destination' => getenv('KM_DIR')
-        ]
+    $credentials = new Aws\Credentials\Credentials(
+        getenv('AWS_ACCESS_KEY_ID'),
+        getenv('AWS_SECRET_ACCESS_KEY')
     );
-});
-
-$container['command.load-events'] = $container->factory(function ($c) {
-    $command = new KissmetricsToDatabase\Commands\LoadEventsCommand(
-        [
-            'work_dir' => getenv('WORK_DIR'),
-            'km_dir' => getenv('KM_DIR'),
-            'last_read_file' => getenv('LAST_READ_FILE'),
-        ]
-    );
-    $command->addOperation('sync-s3', $c['operations.sync-s3-bucket']);
-
-    return $command;
+    return new Aws\S3\S3MultiRegionClient([
+        'credentials' => $credentials,
+        'version' => 'latest'
+    ]);
 });
 
 $container['redshift.client'] = $container->factory(function () {
@@ -41,9 +25,39 @@ $container['redshift.client'] = $container->factory(function () {
         getenv('REDSHIFT_PASSWORD')
     );
 
-    return new PDO($dsn, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-    ]);
+    $client = new PDO($dsn);
+    $client->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    return $client;
+});
+
+$container['operations.s3-sync'] = $container->factory(function ($c) {
+    return new KissmetricsToDatabase\Operations\SyncBucket(
+        $c['aws.s3.client'],
+        [
+            'source' => getenv('AWS_S3_BUCKET'),
+            'destination' => getenv('KM_DIR')
+        ]
+    );
+});
+
+$container['operations.red-shift-importer'] = $container->factory(
+    function ($c) {
+        return new KissmetricsToDatabase\Operations\RedShiftImporter(
+            $c['redshift.client']
+        );
+    }
+);
+
+$container['command.load-events'] = $container->factory(function ($c) {
+    $command = new KissmetricsToDatabase\Commands\LoadEventsCommand(
+        [
+            'work_dir' => getenv('WORK_DIR'),
+            'km_dir' => getenv('KM_DIR'),
+            'last_read_file' => getenv('LAST_READ_FILE'),
+        ]
+    );
+
+    return $command;
 });
 
 /**
