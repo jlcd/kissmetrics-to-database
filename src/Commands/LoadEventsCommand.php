@@ -6,14 +6,20 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
-use KissmetricsToDatabase\Operations\OperationInterface;
+use KissmetricsToDatabase\Operations\SyncBucket;
+use KissmetricsToDatabase\Operations\RedShiftImporter;
 
 class LoadEventsCommand extends Command
 {
     /**
-     * @var array $operations
+     * @var SyncBucket $syncBucket
      */
-    private $operations;
+    private $syncBucket;
+
+    /**
+     * @var RedShiftImporter $importer
+     */
+    private $importer;
 
     /**
      * @var array $directories
@@ -23,24 +29,17 @@ class LoadEventsCommand extends Command
     /**
      * @param array $directories
      */
-    public function __construct(array $directories)
+    public function __construct(
+        RedShiftImporter $importer,
+        SyncBucket $syncBucket,
+        array $directories
+    )
     {
         parent::__construct();
 
+        $this->importer = $importer;
+        $this->syncBucket = $syncBucket;
         $this->directories = $directories;
-    }
-
-    /**
-     * @param string $name
-     * @param OperationInterface $operation
-     * 
-     * @return $this
-     */
-    public function addOperation($name, OperationInterface $operation)
-    {
-        $this->operations[$name] = $operation;
-
-        return $this;
     }
 
     protected function configure()
@@ -51,11 +50,8 @@ class LoadEventsCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        // syncronize the local directory with the S3 Bucket
-        // that contains all files from Kiss Metrics
-        # $output->writeln('Sync our local folder with the S3 Bucket');
-        # $syncOp = $this->operations['s3-sync'];
-        # $syncOp->execute();
+        $output->writeln('Sync our local folder with the S3 Bucket');
+        $this->syncBucket->sync();
 
         $output->writeln('Getting the list of files to be processed...');
         $finder = new Finder();
@@ -68,7 +64,7 @@ class LoadEventsCommand extends Command
         if (file_exists($this->directories['last_read_file'])) {
             $lastFile = file_get_contents($this->directories['last_read_file']);
             $finder->filter(function ($file) use ($lastFile) {
-                if (0 > strnatcmp($file->getRealPath(), $lastFile)) {
+                if (0 > strnatcmp($file->getFilename(), $lastFile)) {
                     return false;
                 }
                 return true;
@@ -76,8 +72,13 @@ class LoadEventsCommand extends Command
         }
 
         foreach ($finder as $file) {
-            (new \KissmetricsToDatabase\Operations\ProcessFile())
-                ->executeWithFile($file);
+            $loaded = $this->importer->importFrom($file);
+            if ($loaded) {
+                file_put_contents(
+                    $this->directories['last_read_file'],
+                    $file->getFilename()
+                );
+            }
         }
     }
 }

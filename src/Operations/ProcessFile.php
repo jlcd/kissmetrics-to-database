@@ -5,7 +5,7 @@ namespace KissmetricsToDatabase\Operations;
 use SplFileInfo;
 use SplFileObject;
 
-class ProcessFile implements OperationInterface
+class ProcessFile
 {
     /**
      * @var SplFileInfo $file
@@ -16,31 +16,32 @@ class ProcessFile implements OperationInterface
      * @param SplFileInfo $file
      * @return $this
      */
-    public function executeWithFile(SplFileInfo $file)
+    public function __construct(SplFileInfo $file)
     {
         $this->file = $file;
-        
-        $this->execute();
-
-        return $this;
     }
 
-    public function execute()
+    public function row()
     {
         $f = $this->file->openfile();
-        $f->setFlags(SplFileObject::DROP_NEW_LINE | SplFileObject::SKIP_EMPTY);
         while (!$f->eof()) {
-            $line = $f->fgets();
-            $data = json_decode($line, true, 512, JSON_UNESCAPED_UNICODE);
+            $line = trim($f->fgets());
+            if (empty($line)) {
+                continue;
+            }
+
+            $data = json_decode_sanitize($line);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                var_dump(mb_list_encodings());
-                echo $line . PHP_EOL;
-                echo mb_convert_encoding($line, "UTF-8", "ISO-8859-1") . PHP_EOL;
-                echo htmlentities($line, ENT_QUOTES | ENT_IGNORE, "UTF-8");
                 throw new \RuntimeException(json_last_error_msg());
             }
 
-            var_dump($data);
+            // Defines fields that are not in the json file
+            // but are in the database for processing/logic purposes
+            $data['_n_not_null'] = (empty($data['_n']) ? '' : $data['_n']);
+            $data['md5hash'] = '';
+
+            // return the current data to be processed
+            yield array_key_sanitize($data);
         }
     }
 }

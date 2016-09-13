@@ -5,7 +5,7 @@ namespace KissmetricsToDatabase\Operations;
 use Aws\S3\S3ClientInterface;
 use Aws\S3\Transfer;
 
-class SyncBucket implements OperationInterface
+class SyncBucket
 {
     /**
      * @var S3Client $client
@@ -33,7 +33,7 @@ class SyncBucket implements OperationInterface
         }
     }
 
-    public function execute()
+    public function sync()
     {
         $transfer = new Transfer(
             $this->client,

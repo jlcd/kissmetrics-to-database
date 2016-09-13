@@ -974,26 +974,6 @@ class KissmetricsToDatabase
 
     /************
     *
-        sanitizeDecodeJson
-    *
-    ************/
-    private function sanitizeDecodeJson($string)
-    {
-    /************
-    *
-        "/(.*?
-    *
-    ************/
-        $string = preg_replace_callback("/(.*?)(\ ?\:\ {0,}?\"?)(.*?)(\"?(}|, |,))/", function ($m) {
-            return $m[1] . $m[2] . addslashes($m[3]) . $m[4];
-        }, $string);
-        $string = str_replace('\\', '\\\\', $string);
-        $string = str_replace('\\\\"', '\\"', $string);
-        return json_decode($string, true);
-    }
-
-    /************
-    *
         sanitizeKey
     *
     ************/

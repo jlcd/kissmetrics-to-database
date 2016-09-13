@@ -31,6 +31,21 @@ $container['command.load-events'] = $container->factory(function ($c) {
     return $command;
 });
 
+$container['redshift.client'] = $container->factory(function () {
+    $dsn = sprintf(
+        'pgsql:host=%s;port=%d;dbname=%s;user=%s;password=%s',
+        getenv('REDSHIFT_ENDPOINT'),
+        getenv('REDSHIFT_PORT'),
+        getenv('REDSHIFT_DBNAME'),
+        getenv('REDSHIFT_USER'),
+        getenv('REDSHIFT_PASSWORD')
+    );
+
+    return new PDO($dsn, [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+    ]);
+});
+
 /**
  * THIS FILE MUST RETURN THE PIMPLE CONTAINER
  */

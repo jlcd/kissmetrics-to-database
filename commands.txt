@@ -3,9 +3,9 @@ require 'vendor/autoload.php';
 
 $KissmetricsToDatabase = new KissmetricsToDatabase\KissmetricsToDatabase();
 DONE! $KissmetricsToDatabase->syncS3();
-$KissmetricsToDatabase->processLocalS3Files();
-$KissmetricsToDatabase->databaseConnect();
-$KissmetricsToDatabase->createNewDatabaseFields();
+DONE! $KissmetricsToDatabase->processLocalS3Files();
+DONE! $KissmetricsToDatabase->databaseConnect();
+DONE! $KissmetricsToDatabase->createNewDatabaseFields();
 $KissmetricsToDatabase->insertNewEventsIntoDatabase();
 
 

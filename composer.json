@@ -14,7 +14,8 @@
     "autoload": {
         "psr-4": {
             "KissmetricsToDatabase\\": "src/"
-        }
+        },
+        "files": ["helpers.php"]
     },
     "require": {
         "php": ">=7.0",
