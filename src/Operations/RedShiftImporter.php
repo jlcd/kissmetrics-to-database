@@ -13,14 +13,9 @@ class RedShiftImporter
     private $client;
 
     /**
-     * @var string $tableName
+     * @var boolean $isDirty
      */
-    private $tableName;
-
-    /**
-     * @var string $fieldType
-     */
-    private $fieldType;
+    private $isDirty = false;
 
     /**
      * @var array $columns
@@ -48,11 +43,17 @@ class RedShiftImporter
 
     /**
      * @param array $row
+     * @param boolean $isDirty
      */
-    private function expandTable(array $row)
+    private function expandTable(array $row, $isDirty)
     {
         $possibleColumns = array_keys($row);
         $newColumns = array_diff($possibleColumns, $this->columns);
+
+        if ($newColumns && $this->isDirty) {
+            $this->client->commit();
+        }
+
         foreach ($newColumns as $newColumn) {
             $statement = $this->client->prepare(
                 'ALTER TABLE tb_event ADD :column TEXT'
@@ -61,6 +62,11 @@ class RedShiftImporter
             $statament->execute();
 
             $this->columns[] = $newColumn;
+        }
+
+        if ($newColumns && $this->isDirty) {
+            $this->client->beginTransaction();
+            $this->isDirty = false;
         }
     }
 
@@ -101,14 +107,20 @@ class RedShiftImporter
 
             foreach ($processor->row() as $row) {
                 // verify if the table needs to be expanded
-                $this->expandTable($row);
+                $this->expandTable($row, $isDirty);
 
                 // persist the new row into the database
                 $this->persist($row);
+
+                // Mark the session as dirty
+                $this->isDirty = true;
             }
 
             // persist the session
             $this->client->commit();
+
+            // mark the session as clean
+            $this->isDirty = false;
 
             return true;
         } catch (Exception $e) {

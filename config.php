@@ -60,6 +60,14 @@ $container['command.load-events'] = $container->factory(function ($c) {
     return $command;
 });
 
+$container['command.db-create'] = $container->factory(function () {
+    return new KissmetricsToDatabase\Commands\CreateDatabaseCommand();
+});
+
+$container['command.process-identities'] = $container->factory(function () {
+    return new KissmetricsToDatabase\Commands\ProcessIdentitiesCommand();
+});
+
 /**
  * THIS FILE MUST RETURN THE PIMPLE CONTAINER
  */

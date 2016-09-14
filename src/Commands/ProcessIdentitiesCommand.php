@@ -14,14 +14,6 @@ class ProcessIdentitiesCommand extends Command
      */
     private $client;
 
-    /**
-     * @param PDO $client
-     */
-    public function __construct(PDO $client)
-    {
-        $this->client = $client;
-    }
-
     protected function configure()
     {
         $this->setName('process-identities')
