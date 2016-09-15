@@ -13,12 +13,18 @@
     ],
     "autoload": {
         "psr-4": {
-            "KissmetricsToDatabase\\": ""
-        }
+            "KissmetricsToDatabase\\": "src/"
+        },
+        "files": ["helpers.php"]
     },
     "require": {
-        "php": ">=5.3.0",
+        "php": ">=7.0",
         "phpmailer/phpmailer": "5.2.8",
-        "vlucas/phpdotenv": "^2.3"
+        "vlucas/phpdotenv": "^2.3",
+        "aws/aws-sdk-php": "3.19.*",
+        "symfony/console": "3.1.*",
+        "pimple/pimple": "3.0.*",
+        "monolog/monolog": "1.21.*",
+        "symfony/finder": "3.1.*"
     }
 }

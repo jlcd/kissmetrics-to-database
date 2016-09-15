@@ -1,9 +1,7 @@
 .env
 .DS_Store
-/vendor
-/node_modules
-composer.lock
+var/*
+!var/.gitkeep
+vendor
+node_modules
 
-/s3
-.s3ToDatabase_LastFileRead
-.s3ToDatabase_LockFile

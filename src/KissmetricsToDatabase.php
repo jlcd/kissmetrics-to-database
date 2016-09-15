@@ -1,6 +1,7 @@
 <?php
 
 namespace KissmetricsToDatabase;
+
 use Dotenv;
 
 class KissmetricsToDatabase
@@ -35,9 +36,6 @@ class KissmetricsToDatabase
     public function __construct()
     {
         $this->exec_started = time();
-
-        $dotenv = new Dotenv\Dotenv(dirname($_SERVER["SCRIPT_FILENAME"]));
-        $dotenv->load();
 
         if (getenv('CFG_USE_JAVASCRIPT_OUTPUT') == "true" && !$this->isPhpCli()) {
             $this->createJsBaseScript();
@@ -154,23 +152,6 @@ class KissmetricsToDatabase
         syncS3
     *
     ************/
-    public function syncS3()
-    {
-        $this->output("Starting S3 Sync...", true);
-
-        $cmd = 'export AWS_DEFAULT_REGION="us-east-1";';
-        $cmd .= getenv('AWS_BIN_PATH') . ' s3 sync ' . getenv('AWS_S3_SOURCE_URL') . ' ' . getenv('LOCAL_S3_TARGET_DIR') . ' 2>&1';
-
-        $this->output(nl2br(shell_exec($cmd)), true);
-
-        $this->done();
-    }
-
-    /************
-    *
-        syncS3
-    *
-    ************/
     public function processLocalS3Files()
     {
         $this->output("Processing Local S3 Files...", true);
@@ -216,9 +197,7 @@ class KissmetricsToDatabase
                             if (!$json) {
                                 $this->output(print_r("[{$file}] Couldn't parse json: " . htmlentities($line), true), true);
                             } else {
-                                # Defines fields that are not in the json file but are in the database for processing/logic purposes
-                                $json['_n_not_null'] = (empty($json['_n']) ? '' : $json['_n']);
-                                $json['md5hash'] = '';
+                                
 
                                 $array_keys = array_keys($json);
 
@@ -522,10 +501,46 @@ class KissmetricsToDatabase
         manageIdentityPairs
     *
     ************/
+    private $identitiesFile;
+
     private function manageIdentityPairs($id1, $id2) {
-        $identities_to_change = array();
-        $identities_to_change[] = $id1;
-        $identities_to_change[] = $id2;
+        # hold all identities from this user here
+        $identities = [$id1, $id2];
+
+        # Verify if the current identity already exists
+        # into out has table and remove it
+        foreach ([$id1, $id2] as $id) {
+            $hash = sha1($id);
+            if (!array_key_exists($hash, $this->identities)) {
+                continue;  # the identity is new, let's skip it
+            }
+            $identities = array_merge($identities, $this->identities[$hash]);
+        }
+
+        # Remove duplicate identities
+        $identities = array_unique($identities);
+
+        # Order the identities alphabeticly ascending
+        sort($identities, SORT_NATURAL | SORT_FLAG_CASE);
+
+        $sign = sha1(implode('|', $identities));
+
+        if (
+
+        foreach ([$id1, $id2] as $id) {
+            if (!array_key_exists($id, $this->known_identity_pairs)) {
+                continue;  # go ahead since it's not exists
+            }
+
+            $identities_to_change = array_unique(
+                array_merge(
+                    $this->known_identity_pairs[sha1($id)],
+                    $identities_to_change
+                )
+            );
+
+            $
+
 
         if (!empty($this->known_identity_pairs[$id1])) {
             $identities_to_change = array_unique(array_merge($this->known_identity_pairs[$id1],$identities_to_change));
@@ -953,36 +968,6 @@ class KissmetricsToDatabase
     public function outputNatural($msg)
     {
         echo PHP_EOL . $msg . "<br />";
-    }
-
-    /************
-    *
-        sanitizeDecodeJson
-    *
-    ************/
-    private function sanitizeDecodeJson($string)
-    {
-    /************
-    *
-        "/(.*?
-    *
-    ************/
-        $string = preg_replace_callback("/(.*?)(\ ?\:\ {0,}?\"?)(.*?)(\"?(}|, |,))/", function ($m) {
-            return $m[1] . $m[2] . addslashes($m[3]) . $m[4];
-        }, $string);
-        $string = str_replace('\\', '\\\\', $string);
-        $string = str_replace('\\\\"', '\\"', $string);
-        return json_decode($string, true);
-    }
-
-    /************
-    *
-        sanitizeKey
-    *
-    ************/
-    private function sanitizeKey($key)
-    {
-        return str_replace(array('-', '_', ' '), '_', $key);
     }
 
     /************

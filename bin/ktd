@@ -1,0 +1,43 @@
+#!/usr/bin/env php
+<?php
+/** vim: set ft=php */
+/**
+ * Kiss metrics to Database
+ *
+ * Tool for import kiss metrics data to Amazon Red Shift
+ */
+
+require __DIR__.'/../vendor/autoload.php';
+
+// Load the configuration
+$dotenv = new Dotenv\Dotenv(__DIR__.'/../');
+$dotenv->load();
+
+$workDir = getenv('WORK_DIR');
+if (!is_writable($workDir)) {
+    echo 'The dir ' . $workDir . ' must be writable.' . PHP_EOL;
+    echo 'Please fix it or change your config ';
+    echo 'to work in a writable dir.' . PHP_EOL;
+    exit(1);
+}
+
+$filesDir = getenv('FILES_DIR');
+if (!file_exists($filesDir) || !is_dir($filesDir)) {
+    mkdir($filesDir, 0777, true); // creates the dir file
+}
+
+unset($workDir);
+unset($filesDir);
+
+$container = require __DIR__.'/../config.php';
+
+// Instanciate a new application
+$app = new KissmetricsToDatabase\Application(
+    'Kiss Metrics to Database',
+    '0.2',
+    $container
+);
+$app->add($container['command.db-create']);
+$app->add($container['command.process-files']);
+$app->run();
+
