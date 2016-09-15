@@ -37,8 +37,7 @@ $app = new KissmetricsToDatabase\Application(
     '0.2',
     $container
 );
-$app->add($container['command.load-events']);
 $app->add($container['command.db-create']);
-$app->add($container['command.process-identities']);
+$app->add($container['command.process-files']);
 $app->run();
 

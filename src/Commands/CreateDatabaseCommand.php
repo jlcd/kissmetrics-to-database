@@ -10,7 +10,7 @@ class CreateDatabaseCommand extends Command
 {
     protected function configure()
     {
-        $this->setName('db:create')
+        $this->setName('create-database')
             ->setDescription(
                 'Create the table structures into a RedShift instance'
             );
@@ -19,14 +19,16 @@ class CreateDatabaseCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $client = $this->getApplication()->make('redshift.client');
-        $eventSql = 'CREATE TABLE tb_event ()';
+        $eventSql = 'CREATE TABLE IF NOT EXISTS tb_event (
+            created_at DATE
+        )';
 
         $client->exec($eventSql);
 
         $identitySql = <<<SQL
-CREATE TABLE tb_identity (
-    id SERIAL PRIMARY KEY,
-    identity VARCHAR(100)[]
+CREATE TABLE IF NOT EXISTS tb_identity (
+    id TEXT,
+    alias TEXT
 )
 SQL;
         $client->exec($identitySql);

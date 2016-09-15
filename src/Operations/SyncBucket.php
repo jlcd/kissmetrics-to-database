@@ -38,7 +38,8 @@ class SyncBucket
         $transfer = new Transfer(
             $this->client,
             $this->source,
-            $this->destination
+            $this->destination,
+            ['debug' => true]
         );
         $transfer->transfer();
     }

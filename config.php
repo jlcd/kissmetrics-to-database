@@ -5,13 +5,13 @@
 $container = new Pimple\Container();
 
 $container['aws.s3.client'] = $container->factory(function () {
-    $credentials = new Aws\Credentials\Credentials(
-        getenv('AWS_ACCESS_KEY_ID'),
-        getenv('AWS_SECRET_ACCESS_KEY')
-    );
-    return new Aws\S3\S3MultiRegionClient([
-        'credentials' => $credentials,
-        'version' => 'latest'
+    return new Aws\S3\S3Client([
+        'region' => 'us-east-1',
+        'credentials' => [
+            'key' => getenv('AWS_ACCESS_KEY_ID'),
+            'secret' => getenv('AWS_SECRET_ACCESS_KEY')
+        ],
+        'version' => 'latest',
     ]);
 });
 
@@ -35,37 +35,30 @@ $container['operations.s3-sync'] = $container->factory(function ($c) {
         $c['aws.s3.client'],
         [
             'source' => getenv('AWS_S3_BUCKET'),
-            'destination' => getenv('KM_DIR')
+            'destination' => getenv('FILES_DIR')
         ]
     );
 });
 
-$container['operations.red-shift-importer'] = $container->factory(
+$container['operations.file-importer'] = $container->factory(
     function ($c) {
-        return new KissmetricsToDatabase\Operations\RedShiftImporter(
+        return new KissmetricsToDatabase\Operations\FileImporter(
             $c['redshift.client']
         );
     }
 );
 
-$container['command.load-events'] = $container->factory(function ($c) {
-    $command = new KissmetricsToDatabase\Commands\LoadEventsCommand(
-        [
-            'work_dir' => getenv('WORK_DIR'),
-            'km_dir' => getenv('KM_DIR'),
-            'last_read_file' => getenv('LAST_READ_FILE'),
-        ]
-    );
-
-    return $command;
-});
-
 $container['command.db-create'] = $container->factory(function () {
     return new KissmetricsToDatabase\Commands\CreateDatabaseCommand();
 });
 
-$container['command.process-identities'] = $container->factory(function () {
-    return new KissmetricsToDatabase\Commands\ProcessIdentitiesCommand();
+$container['command.process-files'] = $container->factory(function ($c) {
+    return new KissmetricsToDatabase\Commands\ProcessFilesCommand([
+        'work_dir' => getenv('WORK_DIR'),
+        'files_dir' => getenv('FILES_DIR'),
+        'last_read_file' => getenv('LAST_READ_FILE'),
+    ]);
+
 });
 
 /**
